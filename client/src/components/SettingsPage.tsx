@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Key, Download, Upload, Trash2, Tag, Sun, Moon, Monitor, Pencil, AlertTriangle, FileDown, FileUp, Database } from 'lucide-react'
+import { Key, Download, Upload, Trash2, Tag, Sun, Moon, Monitor, Pencil, AlertTriangle, FileDown, FileUp, Database, ExternalLink, FileText, UploadCloud, X } from 'lucide-react'
 import type { Tag as TagType } from '@/types'
 
 export default function SettingsPage() {
@@ -50,6 +50,77 @@ export default function SettingsPage() {
       loadApiKeyStatus()
     } catch (err: any) {
       toast.error(err.message || 'Failed to save API key')
+    }
+  }
+
+  const handleDeleteApiKey = async () => {
+    if (!confirm('Remove your API key? AI features (parsing, analysis, cover letters) will stop working until you add a new one.')) return
+    try {
+      await api.deleteApiKey()
+      toast.success('API key removed')
+      setApiKeyStatus({ configured: false, masked: null })
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove API key')
+    }
+  }
+
+  // Master CV state
+  const [masterCV, setMasterCV] = useState<any>(null)
+  const [cvLoading, setCvLoading] = useState(false)
+  const [cvText, setCvText] = useState('')
+  const [showCvTextInput, setShowCvTextInput] = useState(false)
+
+  useEffect(() => {
+    loadMasterCV()
+  }, [])
+
+  const loadMasterCV = async () => {
+    try {
+      const data = await api.getMasterCV()
+      setMasterCV(data)
+      if (data?.extracted_text) setCvText(data.extracted_text)
+    } catch {}
+  }
+
+  const handleUploadCV = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setCvLoading(true)
+    try {
+      const data = await api.uploadMasterCV(file)
+      setMasterCV(data)
+      setShowCvTextInput(true)
+      toast.success('CV uploaded. Please paste or verify the extracted text below.')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload CV')
+    } finally {
+      setCvLoading(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleSaveCvText = async () => {
+    if (!masterCV?.id || !cvText.trim()) return
+    try {
+      await api.updateMasterCVText(masterCV.id, cvText.trim())
+      setMasterCV((prev: any) => ({ ...prev, extracted_text: cvText.trim() }))
+      setShowCvTextInput(false)
+      toast.success('CV text saved')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save CV text')
+    }
+  }
+
+  const handleDeleteCV = async () => {
+    if (!masterCV?.id) return
+    if (!confirm('Delete your Master CV? This will remove it from all AI features.')) return
+    try {
+      await api.deleteMasterCV(masterCV.id)
+      setMasterCV(null)
+      setCvText('')
+      toast.success('Master CV deleted')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete CV')
     }
   }
 
@@ -177,13 +248,18 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm flex items-center gap-2"><Key className="h-4 w-4" /> Anthropic API Key</CardTitle>
-          <CardDescription>Required for AI-powered job description parsing (URL and text parsing)</CardDescription>
+          <CardDescription>Required for AI-powered features: job parsing, compatibility analysis, and cover letter generation</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {apiKeyStatus.configured && (
-            <p className="text-sm text-[#7CB518]">
-              ✓ API key configured: {apiKeyStatus.masked}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-[#7CB518]">
+                ✓ API key configured: {apiKeyStatus.masked}
+              </p>
+              <Button variant="ghost" size="sm" onClick={handleDeleteApiKey} className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 h-7 text-xs">
+                <Trash2 className="h-3 w-3 mr-1" /> Remove Key
+              </Button>
+            </div>
           )}
           <div className="flex gap-2">
             <Input
@@ -193,11 +269,94 @@ export default function SettingsPage() {
               onChange={e => setApiKey(e.target.value)}
               className="flex-1"
             />
-            <Button onClick={handleSaveApiKey} disabled={!apiKey.trim()}>Save</Button>
+            <Button onClick={handleSaveApiKey} disabled={!apiKey.trim()}>
+              {apiKeyStatus.configured ? 'Update' : 'Save'}
+            </Button>
           </div>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Your API key is stored securely in your user settings. It is used only for AI-powered job parsing.
-          </p>
+          <div className="text-xs text-[hsl(var(--muted-foreground))] space-y-1">
+            <p>Your API key is stored securely and used only for AI features (parsing, analysis, cover letters).</p>
+            <p>
+              Get your API key from{' '}
+              <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-[#489FB5] hover:underline inline-flex items-center gap-0.5">
+                console.anthropic.com <ExternalLink className="h-3 w-3" />
+              </a>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Master CV */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Master CV / Resume</CardTitle>
+          <CardDescription>Upload your CV to enable AI compatibility analysis and personalized cover letters</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {masterCV ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-[#A1C181]/10 border border-[#7CB518]/30">
+                <div>
+                  <p className="text-sm font-medium">{masterCV.file_name}</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    {masterCV.extracted_text ? '✓ Text extracted' : '⚠ Text not extracted yet'} · {(masterCV.file_size / 1024).toFixed(0)} KB
+                  </p>
+                </div>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowCvTextInput(!showCvTextInput)}>
+                    <Pencil className="h-3 w-3 mr-1" /> {masterCV.extracted_text ? 'Edit Text' : 'Add Text'}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={handleDeleteCV}>
+                    <Trash2 className="h-3 w-3 mr-1" /> Delete
+                  </Button>
+                </div>
+              </div>
+
+              {showCvTextInput && (
+                <div className="space-y-2">
+                  <label className="text-xs font-medium block">CV Text Content</label>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                    Paste your CV content as plain text. This text is used by AI for compatibility analysis and cover letter generation.
+                  </p>
+                  <textarea
+                    className="w-full min-h-[200px] p-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm font-mono resize-y"
+                    value={cvText}
+                    onChange={e => setCvText(e.target.value)}
+                    placeholder="Paste your full CV/resume text here..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setShowCvTextInput(false)}>Cancel</Button>
+                    <Button size="sm" onClick={handleSaveCvText} disabled={!cvText.trim()}>Save Text</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="border-2 border-dashed border-[hsl(var(--border))] rounded-lg p-6 text-center">
+                <UploadCloud className="h-8 w-8 mx-auto text-[hsl(var(--muted-foreground))] mb-2" />
+                <p className="text-sm font-medium mb-1">Upload your Master CV</p>
+                <p className="text-xs text-[hsl(var(--muted-foreground))] mb-3">
+                  PDF or DOCX recommended. After uploading, paste the text content for AI analysis.
+                </p>
+                <div className="relative inline-block">
+                  <input
+                    type="file"
+                    accept=".pdf,.docx,.doc,.txt"
+                    onChange={handleUploadCV}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    disabled={cvLoading}
+                  />
+                  <Button size="sm" disabled={cvLoading}>
+                    {cvLoading ? <span className="animate-spin mr-2">⟳</span> : <UploadCloud className="h-4 w-4 mr-1" />}
+                    Choose File
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                Your CV enables: auto match score calculation, personalized cover letters, and compatibility analysis.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

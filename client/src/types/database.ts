@@ -89,6 +89,7 @@ export type Database = {
           job_url: string | null
           location_city: string | null
           location_country: string | null
+          match_analysis: Json | null
           match_score: number | null
           notes: string | null
           priority: string | null
@@ -123,6 +124,7 @@ export type Database = {
           job_url?: string | null
           location_city?: string | null
           location_country?: string | null
+          match_analysis?: Json | null
           match_score?: number | null
           notes?: string | null
           priority?: string | null
@@ -157,6 +159,7 @@ export type Database = {
           job_url?: string | null
           location_city?: string | null
           location_country?: string | null
+          match_analysis?: Json | null
           match_score?: number | null
           notes?: string | null
           priority?: string | null
@@ -195,8 +198,11 @@ export type Database = {
           content: string | null
           created_at: string | null
           file_name: string | null
+          generated_text: string | null
           id: string
+          instructions: string | null
           label: string
+          match_analysis: Json | null
           resume_id: string | null
           storage_path: string | null
           updated_at: string | null
@@ -207,8 +213,11 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           file_name?: string | null
+          generated_text?: string | null
           id?: string
+          instructions?: string | null
           label: string
+          match_analysis?: Json | null
           resume_id?: string | null
           storage_path?: string | null
           updated_at?: string | null
@@ -219,8 +228,11 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           file_name?: string | null
+          generated_text?: string | null
           id?: string
+          instructions?: string | null
           label?: string
+          match_analysis?: Json | null
           resume_id?: string | null
           storage_path?: string | null
           updated_at?: string | null
@@ -242,6 +254,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      master_cvs: {
+        Row: {
+          created_at: string | null
+          extracted_text: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          is_active: boolean | null
+          mime_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          extracted_text?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          mime_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          extracted_text?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          is_active?: boolean | null
+          mime_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       resumes: {
         Row: {

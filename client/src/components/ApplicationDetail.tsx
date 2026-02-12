@@ -14,7 +14,7 @@ import ResumePicker from '@/components/ResumePicker'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, ExternalLink, Save, Trash2, Clock, Building, MapPin, Briefcase, User, Mail, Calendar } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Save, Trash2, Clock, Building, MapPin, Briefcase, User, Mail, Calendar, Sparkles, FileText, Copy, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { format } from 'date-fns'
 
 interface Props {
@@ -35,6 +35,18 @@ export default function ApplicationDetail({ onRefresh }: Props) {
     dateValue: string
   } | null>(null)
 
+  // AI features state
+  const [analyzing, setAnalyzing] = useState(false)
+  const [matchAnalysis, setMatchAnalysis] = useState<any>(null)
+  const [showAnalysis, setShowAnalysis] = useState(true)
+  const [generatingCover, setGeneratingCover] = useState(false)
+  const [coverLetter, setCoverLetter] = useState<any>(null)
+  const [coverInstructions, setCoverInstructions] = useState('')
+  const [showCoverLetter, setShowCoverLetter] = useState(true)
+  const [coverLetters, setCoverLetters] = useState<any[]>([])
+  const [editingCoverLetter, setEditingCoverLetter] = useState<string | null>(null)
+  const [editedCoverText, setEditedCoverText] = useState('')
+
   useEffect(() => {
     if (id) loadApplication()
   }, [id])
@@ -44,11 +56,83 @@ export default function ApplicationDetail({ onRefresh }: Props) {
       const data = await api.getApplication(id!)
       setApp(data)
       setForm(data)
+      if (data.match_analysis) {
+        setMatchAnalysis(data.match_analysis)
+      }
     } catch (err) {
       toast.error('Failed to load application')
       navigate('/')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCoverLetters = async () => {
+    try {
+      const data = await api.getCoverLetters(id!)
+      setCoverLetters(data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (id) loadCoverLetters()
+  }, [id])
+
+  const handleAnalyzeMatch = async () => {
+    setAnalyzing(true)
+    try {
+      const result = await api.analyzeMatch(id!)
+      setMatchAnalysis(result)
+      setShowAnalysis(true)
+      loadApplication() // Refresh to get updated match_score
+      toast.success('Compatibility analysis complete')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to analyze match')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
+  const handleGenerateCoverLetter = async () => {
+    setGeneratingCover(true)
+    try {
+      const result = await api.generateCoverLetter(id!, coverInstructions || undefined)
+      setCoverLetter(result)
+      setShowCoverLetter(true)
+      setCoverInstructions('')
+      loadCoverLetters()
+      toast.success('Cover letter generated')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate cover letter')
+    } finally {
+      setGeneratingCover(false)
+    }
+  }
+
+  const handleCopyCoverLetter = (text: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success('Copied to clipboard')
+  }
+
+  const handleUpdateCoverLetter = async (clId: string) => {
+    try {
+      await api.updateCoverLetter(clId, { generated_text: editedCoverText })
+      setEditingCoverLetter(null)
+      loadCoverLetters()
+      toast.success('Cover letter updated')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update')
+    }
+  }
+
+  const handleDeleteCoverLetter = async (clId: string) => {
+    if (!confirm('Delete this cover letter?')) return
+    try {
+      await api.deleteCoverLetter(clId)
+      loadCoverLetters()
+      toast.success('Cover letter deleted')
+    } catch {
+      toast.error('Failed to delete cover letter')
     }
   }
 
@@ -365,6 +449,206 @@ export default function ApplicationDetail({ onRefresh }: Props) {
               </CardContent>
             </Card>
           )}
+
+          {/* AI Match Analysis */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#FFA62B]" /> Compatibility Analysis
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {matchAnalysis && (
+                    <button onClick={() => setShowAnalysis(!showAnalysis)} className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+                      {showAnalysis ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                  )}
+                  <Button size="sm" onClick={handleAnalyzeMatch} disabled={analyzing} variant={matchAnalysis ? 'outline' : 'default'}>
+                    {analyzing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                    {matchAnalysis ? 'Re-analyze' : 'Analyze Match'}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            {matchAnalysis && showAnalysis && (
+              <CardContent className="space-y-4">
+                {/* Score */}
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl font-bold text-[#489FB5]">{matchAnalysis.match_score}/5</div>
+                  <div className="flex-1">
+                    <div className="h-2 bg-[hsl(var(--muted))] rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${(matchAnalysis.match_score / 5) * 100}%`,
+                          backgroundColor: matchAnalysis.match_score >= 4 ? '#7CB518' : matchAnalysis.match_score >= 3 ? '#FFA62B' : '#E53D00'
+                        }}
+                      />
+                    </div>
+                    <p className="text-sm mt-1">{matchAnalysis.summary}</p>
+                  </div>
+                </div>
+
+                {/* Strengths & Gaps */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {matchAnalysis.strengths?.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#7CB518] uppercase tracking-wider mb-2">Strengths</h4>
+                      <ul className="space-y-1">
+                        {matchAnalysis.strengths.map((s: string, i: number) => (
+                          <li key={i} className="text-xs flex items-start gap-1.5">
+                            <span className="text-[#7CB518] mt-0.5 shrink-0">+</span>
+                            <span>{s}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {matchAnalysis.gaps?.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#E53D00] uppercase tracking-wider mb-2">Gaps</h4>
+                      <ul className="space-y-1">
+                        {matchAnalysis.gaps.map((g: string, i: number) => (
+                          <li key={i} className="text-xs flex items-start gap-1.5">
+                            <span className="text-[#E53D00] mt-0.5 shrink-0">-</span>
+                            <span>{g}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {/* Suggestions */}
+                {matchAnalysis.suggestions?.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-[#489FB5] uppercase tracking-wider mb-2">Suggestions</h4>
+                    <ul className="space-y-1">
+                      {matchAnalysis.suggestions.map((s: string, i: number) => (
+                        <li key={i} className="text-xs flex items-start gap-1.5">
+                          <span className="text-[#489FB5] mt-0.5 shrink-0">→</span>
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Keywords */}
+                {(matchAnalysis.keyword_matches?.length > 0 || matchAnalysis.missing_keywords?.length > 0) && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-2">Keywords</h4>
+                    <div className="flex flex-wrap gap-1">
+                      {matchAnalysis.keyword_matches?.map((k: string, i: number) => (
+                        <Badge key={`m-${i}`} className="bg-[#7CB518]/10 text-[#7CB518] border-[#7CB518]/30 text-[10px]">{k}</Badge>
+                      ))}
+                      {matchAnalysis.missing_keywords?.map((k: string, i: number) => (
+                        <Badge key={`x-${i}`} className="bg-[#E53D00]/10 text-[#E53D00] border-[#E53D00]/30 text-[10px] line-through">{k}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+
+          {/* Cover Letter Generator */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#489FB5]" /> Cover Letter
+                </CardTitle>
+                {coverLetter && (
+                  <button onClick={() => setShowCoverLetter(!showCoverLetter)} className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+                    {showCoverLetter ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Generate form */}
+              <div className="space-y-2">
+                <Input
+                  placeholder="Optional: special instructions (e.g., 'emphasize leadership experience', 'formal tone')"
+                  value={coverInstructions}
+                  onChange={e => setCoverInstructions(e.target.value)}
+                  className="text-sm"
+                />
+                <Button size="sm" onClick={handleGenerateCoverLetter} disabled={generatingCover}>
+                  {generatingCover ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                  Generate Cover Letter
+                </Button>
+              </div>
+
+              {/* Latest generated */}
+              {coverLetter && showCoverLetter && (
+                <div className="border border-[hsl(var(--border))] rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-[#489FB5]">Generated Cover Letter</span>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => handleCopyCoverLetter(coverLetter.cover_letter)}>
+                      <Copy className="h-3 w-3 mr-1" /> Copy
+                    </Button>
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap">{coverLetter.cover_letter}</p>
+                  {coverLetter.key_points?.length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Key points highlighted:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {coverLetter.key_points.map((p: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-[10px]">{p}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Saved cover letters */}
+              {coverLetters.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider">
+                    Saved Cover Letters ({coverLetters.length})
+                  </h4>
+                  {coverLetters.map((cl: any) => (
+                    <div key={cl.id} className="border border-[hsl(var(--border))] rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                          v{cl.version} · {new Date(cl.created_at).toLocaleDateString()}
+                          {cl.instructions && ` · "${cl.instructions}"`}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => handleCopyCoverLetter(cl.generated_text || '')}>
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                          {editingCoverLetter === cl.id ? (
+                            <>
+                              <Button size="sm" className="h-6 text-xs px-2" onClick={() => handleUpdateCoverLetter(cl.id)}>Save</Button>
+                              <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => setEditingCoverLetter(null)}>Cancel</Button>
+                            </>
+                          ) : (
+                            <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => { setEditingCoverLetter(cl.id); setEditedCoverText(cl.generated_text || '') }}>Edit</Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="h-6 text-xs px-2 text-red-600" onClick={() => handleDeleteCoverLetter(cl.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      {editingCoverLetter === cl.id ? (
+                        <textarea
+                          className="w-full min-h-[150px] p-2 rounded border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm resize-y"
+                          value={editedCoverText}
+                          onChange={e => setEditedCoverText(e.target.value)}
+                        />
+                      ) : (
+                        <p className="text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">{cl.generated_text}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Sidebar */}

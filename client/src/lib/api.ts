@@ -258,18 +258,18 @@ export const api = {
 
   // ========== Parsing ==========
 
-  parseUrl: async (url: string) => {
+  parseUrl: async (url: string, cvText?: string) => {
     const { data, error } = await supabase.functions.invoke('parse-job', {
-      body: { type: 'url', content: url },
+      body: { type: 'url', content: url, cv_text: cvText || undefined },
     })
     if (error) throw new Error(error.message || 'Failed to parse URL')
     if (data?.error) throw new Error(data.error)
     return data
   },
 
-  parseText: async (text: string) => {
+  parseText: async (text: string, cvText?: string) => {
     const { data, error } = await supabase.functions.invoke('parse-job', {
-      body: { type: 'text', content: text },
+      body: { type: 'text', content: text, cv_text: cvText || undefined },
     })
     if (error) throw new Error(error.message || 'Failed to parse text')
     if (data?.error) throw new Error(data.error)
@@ -654,7 +654,7 @@ export const api = {
     return data
   },
 
-  updateCoverLetter: async (id: string, updates: { label?: string; content?: string }): Promise<CoverLetter> => {
+  updateCoverLetter: async (id: string, updates: { label?: string; content?: string; generated_text?: string }): Promise<CoverLetter> => {
     const { data, error } = await supabase
       .from('cover_letters')
       .update(updates)
@@ -694,6 +694,111 @@ export const api = {
       .eq('user_id', userId)
     if (error) throw new Error(error.message)
     return { success: true }
+  },
+
+  deleteApiKey: async () => {
+    const userId = await getCurrentUserId()
+    const { error } = await supabase
+      .from('user_settings')
+      .update({ anthropic_api_key: null })
+      .eq('user_id', userId)
+    if (error) throw new Error(error.message)
+    return { success: true }
+  },
+
+  // ========== Master CV ==========
+
+  getMasterCV: async () => {
+    const { data, error } = await supabase
+      .from('master_cvs')
+      .select('*')
+      .eq('is_active', true)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  uploadMasterCV: async (file: File, extractedText?: string) => {
+    const userId = await getCurrentUserId()
+
+    // Deactivate existing active CV
+    await supabase
+      .from('master_cvs')
+      .update({ is_active: false })
+      .eq('user_id', userId)
+      .eq('is_active', true)
+
+    const storagePath = `${userId}/${Date.now()}_${file.name}`
+
+    // Upload to storage
+    const { error: uploadError } = await supabase.storage
+      .from('master-cvs')
+      .upload(storagePath, file, { contentType: file.type })
+    if (uploadError) throw new Error(uploadError.message)
+
+    // Insert record
+    const { data, error } = await supabase
+      .from('master_cvs')
+      .insert({
+        user_id: userId,
+        file_name: file.name,
+        file_path: storagePath,
+        file_size: file.size,
+        mime_type: file.type || 'application/pdf',
+        extracted_text: extractedText || null,
+        is_active: true,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  updateMasterCVText: async (id: string, extractedText: string) => {
+    const { data, error } = await supabase
+      .from('master_cvs')
+      .update({ extracted_text: extractedText })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  deleteMasterCV: async (id: string) => {
+    const { data: cv } = await supabase
+      .from('master_cvs')
+      .select('file_path')
+      .eq('id', id)
+      .single()
+
+    if (cv?.file_path) {
+      await supabase.storage.from('master-cvs').remove([cv.file_path])
+    }
+
+    const { error } = await supabase.from('master_cvs').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    return { success: true }
+  },
+
+  // ========== AI Functions ==========
+
+  analyzeMatch: async (applicationId: string) => {
+    const { data, error } = await supabase.functions.invoke('analyze-match', {
+      body: { application_id: applicationId },
+    })
+    if (error) throw new Error(error.message || 'Failed to analyze match')
+    if (data?.error) throw new Error(data.error)
+    return data
+  },
+
+  generateCoverLetter: async (applicationId: string, instructions?: string) => {
+    const { data, error } = await supabase.functions.invoke('generate-cover', {
+      body: { application_id: applicationId, instructions },
+    })
+    if (error) throw new Error(error.message || 'Failed to generate cover letter')
+    if (data?.error) throw new Error(data.error)
+    return data
   },
 
   clearData: async () => {

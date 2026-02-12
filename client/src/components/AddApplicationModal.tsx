@@ -66,6 +66,17 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
   const [countrySearch, setCountrySearch] = useState('')
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const [resumeId, setResumeId] = useState<string | null>(null)
+  const [showTagDropdown, setShowTagDropdown] = useState(false)
+  const [tagDropdownIndex, setTagDropdownIndex] = useState(0)
+
+  const [masterCVText, setMasterCVText] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Load master CV text once for enhanced parsing
+    api.getMasterCV().then(cv => {
+      if (cv?.extracted_text) setMasterCVText(cv.extracted_text)
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -140,6 +151,24 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
       filled.add('job_url')
     }
 
+    // Apply salary_not_specified from AI
+    if (parsed.salary_not_specified) {
+      (newForm as any).salary_not_specified = true
+      filled.add('salary_not_specified')
+    }
+
+    // Apply source from AI
+    if (parsed.source) {
+      newForm.source = parsed.source
+      filled.add('source')
+    }
+
+    // Apply company_website from AI
+    if (parsed.company_website) {
+      newForm.company_website = parsed.company_website
+      filled.add('company_website')
+    }
+
     // Try to match country to dropdown
     if (newForm.location_country) {
       const match = COUNTRIES.find(c => c.toLowerCase() === newForm.location_country.toLowerCase())
@@ -159,7 +188,7 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
     if (!url.trim()) return
     setLoading(true)
     try {
-      const result = await api.parseUrl(url.trim())
+      const result = await api.parseUrl(url.trim(), masterCVText || undefined)
       applyParsedData(result.parsed, result.raw_text, result.fields_extracted, result.total_fields, result.source_url)
       toast.success('Job posting parsed successfully')
     } catch (err: any) {
@@ -173,7 +202,7 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
     if (!pasteText.trim()) return
     setLoading(true)
     try {
-      const result = await api.parseText(pasteText.trim())
+      const result = await api.parseText(pasteText.trim(), masterCVText || undefined)
       applyParsedData(result.parsed, result.raw_text, result.fields_extracted, result.total_fields)
       toast.success('Job description parsed successfully')
     } catch (err: any) {
@@ -192,7 +221,31 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
   }
 
   const updateForm = (field: string, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }))
+    setForm(prev => {
+      const updated = { ...prev, [field]: value }
+
+      // Smart defaults: when status → "applied", auto-fill dates
+      if (field === 'status' && value === 'applied') {
+        const today = new Date().toISOString().slice(0, 10)
+        if (!prev.date_applied) {
+          updated.date_applied = today
+        }
+        if (!prev.follow_up_date) {
+          const followUp = new Date()
+          followUp.setDate(followUp.getDate() + 14)
+          updated.follow_up_date = followUp.toISOString().slice(0, 10)
+        }
+      }
+
+      // Smart default: when date_applied changes and no follow_up_date set
+      if (field === 'date_applied' && typeof value === 'string' && value && !prev.follow_up_date) {
+        const followUp = new Date(value)
+        followUp.setDate(followUp.getDate() + 14)
+        updated.follow_up_date = followUp.toISOString().slice(0, 10)
+      }
+
+      return updated
+    })
   }
 
   const handleAddTag = (tagName: string) => {
@@ -247,11 +300,20 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
 
   const fieldClass = (field: string) => autoFilled.has(field) ? 'ring-2 ring-[#7CB518]/50 bg-[#A1C181]/5' : ''
 
-  // Suggested tags: existing tags not already selected
+  // Suggested tags: existing tags not already selected, sorted by usage
   const suggestedTags = existingTags
     .filter(t => !selectedTags.includes(t.name))
-    .filter(t => !tagInput || t.name.toLowerCase().includes(tagInput.toLowerCase()))
+    .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
     .slice(0, 12)
+
+  // Dropdown tags: filtered by input, sorted by usage
+  const dropdownTags = tagInput.trim()
+    ? existingTags
+        .filter(t => !selectedTags.includes(t.name))
+        .filter(t => t.name.toLowerCase().includes(tagInput.toLowerCase()))
+        .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+        .slice(0, 8)
+    : []
 
   const renderStep1 = () => (
     <div className="space-y-5 py-2">
@@ -522,21 +584,69 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
               </Badge>
             ))}
           </div>
-          {/* Tag input */}
-          <Input
-            className={fieldClass('tags')}
-            value={tagInput}
-            onChange={e => setTagInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ',') {
-                e.preventDefault()
-                handleAddTag(tagInput)
-              }
-            }}
-            placeholder="Type a tag and press Enter..."
-          />
+          {/* Tag input with autocomplete dropdown */}
+          <div className="relative">
+            <Input
+              className={fieldClass('tags')}
+              value={tagInput}
+              onChange={e => {
+                setTagInput(e.target.value)
+                setTagDropdownIndex(0)
+                setShowTagDropdown(true)
+              }}
+              onFocus={() => setShowTagDropdown(true)}
+              onBlur={() => setTimeout(() => setShowTagDropdown(false), 200)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ',') {
+                  e.preventDefault()
+                  if (showTagDropdown && dropdownTags.length > 0 && tagDropdownIndex < dropdownTags.length) {
+                    handleAddTag(dropdownTags[tagDropdownIndex].name)
+                  } else {
+                    handleAddTag(tagInput)
+                  }
+                  setShowTagDropdown(false)
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setTagDropdownIndex(prev => Math.min(prev + 1, dropdownTags.length - 1))
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setTagDropdownIndex(prev => Math.max(prev - 1, 0))
+                } else if (e.key === 'Escape') {
+                  setShowTagDropdown(false)
+                } else if (e.key === 'Backspace' && !tagInput && selectedTags.length > 0) {
+                  handleRemoveTag(selectedTags[selectedTags.length - 1])
+                }
+              }}
+              placeholder="Type a tag and press Enter..."
+            />
+            {/* Autocomplete dropdown */}
+            {showTagDropdown && dropdownTags.length > 0 && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-md shadow-lg max-h-48 overflow-y-auto">
+                {dropdownTags.map((tag, idx) => (
+                  <button
+                    key={tag.id}
+                    className={cn(
+                      "w-full text-left px-3 py-1.5 text-sm transition-colors flex items-center justify-between",
+                      idx === tagDropdownIndex ? "bg-[hsl(var(--accent))]" : "hover:bg-[hsl(var(--accent))]"
+                    )}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => {
+                      handleAddTag(tag.name)
+                      setShowTagDropdown(false)
+                    }}
+                    onMouseEnter={() => setTagDropdownIndex(idx)}
+                  >
+                    <span>{tag.name}</span>
+                    {tag.usage_count !== undefined && (
+                      <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{tag.usage_count} uses</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Quick-select existing tags */}
-          {suggestedTags.length > 0 && (
+          {suggestedTags.length > 0 && !tagInput && (
             <div className="mt-2">
               <span className="text-[10px] text-[hsl(var(--muted-foreground))] uppercase tracking-wider">Quick add:</span>
               <div className="flex flex-wrap gap-1 mt-1">
