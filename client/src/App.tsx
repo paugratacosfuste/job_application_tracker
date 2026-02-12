@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, LogOut, FileText, FileEdit, Loader2 } from 'lucide-react'
+import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, Monitor, LogOut, FileText, FileEdit, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import KanbanBoard from '@/components/KanbanBoard'
@@ -46,10 +46,10 @@ function AppLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [darkMode, setDarkMode] = useState(() => {
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     const saved = localStorage.getItem('theme')
-    if (saved) return saved === 'dark'
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
+    if (saved === 'light' || saved === 'dark') return saved
+    return 'system'
   })
   const [refreshKey, setRefreshKey] = useState(0)
   const navigate = useNavigate()
@@ -58,10 +58,25 @@ function AppLayout() {
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
+  // Apply theme and listen for OS changes when in system mode
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', darkMode)
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light')
-  }, [darkMode])
+    const applyTheme = () => {
+      const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      document.documentElement.classList.toggle('dark', isDark)
+    }
+
+    applyTheme()
+    localStorage.setItem('theme', theme)
+
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const listener = () => { if (theme === 'system') applyTheme() }
+    mql.addEventListener('change', listener)
+    return () => mql.removeEventListener('change', listener)
+  }, [theme])
+
+  const cycleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light')
+  }
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -202,8 +217,8 @@ function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setDarkMode(!darkMode)} className="h-8 w-8">
-              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            <Button variant="ghost" size="icon" onClick={cycleTheme} className="h-8 w-8" title={`Theme: ${theme}`}>
+              {theme === 'light' ? <Sun className="h-4 w-4" /> : theme === 'dark' ? <Moon className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
             </Button>
             <Button size="sm" onClick={() => setAddModalOpen(true)} className="gap-1">
               <Plus className="h-4 w-4" />

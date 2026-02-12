@@ -52,9 +52,9 @@ const STEPS = [
           <Settings className="w-8 h-8" style={{ color: '#489FB5' }} />
         </div>
         <p className="text-[hsl(var(--muted-foreground))] text-sm max-w-md">
-          To unlock AI-powered features, head to{' '}
+          The app works great on its own. To unlock AI-powered features, head to{' '}
           <span className="font-semibold text-[hsl(var(--foreground))]">Settings</span>{' '}
-          and complete two quick steps:
+          and complete two optional steps:
         </p>
         <div className="w-full max-w-sm space-y-3">
           <div className="flex items-start gap-3 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 text-left">
@@ -67,9 +67,10 @@ const STEPS = [
             <div>
               <p className="text-sm font-medium text-[hsl(var(--foreground))]">
                 Add your Anthropic API Key
+                <span className="ml-1.5 text-xs font-normal text-[hsl(var(--muted-foreground))]">(optional)</span>
               </p>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Enables AI job parsing, cover letter generation, and compatibility scoring.
+                Enables AI job parsing, cover letter generation, and compatibility scoring. The app works without it — you can add it anytime.
               </p>
             </div>
           </div>
@@ -83,9 +84,10 @@ const STEPS = [
             <div>
               <p className="text-sm font-medium text-[hsl(var(--foreground))]">
                 Upload your Master CV
+                <span className="ml-1.5 text-xs font-normal text-[hsl(var(--muted-foreground))]">(optional)</span>
               </p>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                Used by AI to tailor cover letters and calculate match scores for each role.
+                Used by AI to tailor cover letters and calculate match scores for each role. Requires an API key.
               </p>
             </div>
           </div>

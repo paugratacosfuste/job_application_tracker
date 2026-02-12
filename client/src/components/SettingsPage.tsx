@@ -286,7 +286,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm flex items-center gap-2"><Key className="h-4 w-4" /> Anthropic API Key</CardTitle>
-          <CardDescription>Required for AI-powered features: job parsing, compatibility analysis, and cover letter generation</CardDescription>
+          <CardDescription>Optional — enables AI-powered job parsing, compatibility analysis, and cover letter generation. The app works without it.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {apiKeyStatus.configured && (
@@ -639,6 +639,7 @@ export default function SettingsPage() {
               ['D', 'Dashboard'],
               ['C', 'Calendar view'],
               ['R', 'Resumes'],
+              ['L', 'Cover Letters'],
               ['S', 'Settings'],
               ['/', 'Focus search'],
             ].map(([key, desc]) => (

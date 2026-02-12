@@ -12,7 +12,7 @@ async function getApiKey(): Promise<string> {
     .select('anthropic_api_key')
     .single()
   if (error || !data?.anthropic_api_key) {
-    throw new Error('Please set your Anthropic API key in Settings')
+    throw new Error('This feature requires an Anthropic API key. You can add one in Settings → API Key. Get a key at console.anthropic.com')
   }
   return data.anthropic_api_key
 }
