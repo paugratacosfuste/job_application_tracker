@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Color palette:
+   Base: #FEFFFE
+   Primary/Navy: #102542
+   Accent/Blue: #489FB5
+   Warning/Orange: #FFA62B
+   Danger/Red: #E53D00
+   Success/Green: #7CB518 / #A1C181
+*/
+
+:root {
+  --background: 120 50% 99.6%;
+  --foreground: 210 40% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 210 40% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 210 40% 16%;
+  --primary: 210 62% 16.5%;
+  --primary-foreground: 120 50% 99.6%;
+  --secondary: 195 20% 95%;
+  --secondary-foreground: 210 62% 16.5%;
+  --muted: 195 20% 95%;
+  --muted-foreground: 210 10% 46%;
+  --accent: 195 42% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 14 100% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 20% 90%;
+  --input: 210 20% 90%;
+  --ring: 195 42% 50%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 210 50% 7%;
+  --foreground: 120 20% 95%;
+  --card: 210 45% 10%;
+  --card-foreground: 120 20% 95%;
+  --popover: 210 45% 10%;
+  --popover-foreground: 120 20% 95%;
+  --primary: 195 42% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 30% 16%;
+  --secondary-foreground: 120 20% 95%;
+  --muted: 210 30% 16%;
+  --muted-foreground: 210 15% 60%;
+  --accent: 195 42% 50%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 14 100% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 30% 18%;
+  --input: 210 30% 18%;
+  --ring: 195 42% 50%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: system-ui, -apple-system, sans-serif;
+}
