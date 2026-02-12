@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { Key, Download, Upload, Trash2, Tag, Sun, Moon, Monitor, Pencil, AlertTriangle, FileDown, FileUp, Database, ExternalLink, FileText, UploadCloud, X } from 'lucide-react'
+import { Key, Download, Upload, Trash2, Tag, Sun, Moon, Monitor, Pencil, AlertTriangle, FileDown, FileUp, Database, ExternalLink, FileText, UploadCloud, X, Sparkles, Loader2 } from 'lucide-react'
 import type { Tag as TagType } from '@/types'
 
 export default function SettingsPage() {
@@ -69,6 +69,7 @@ export default function SettingsPage() {
   const [cvLoading, setCvLoading] = useState(false)
   const [cvText, setCvText] = useState('')
   const [showCvTextInput, setShowCvTextInput] = useState(false)
+  const [extractingPdf, setExtractingPdf] = useState(false)
 
   useEffect(() => {
     loadMasterCV()
@@ -121,6 +122,43 @@ export default function SettingsPage() {
       toast.success('Master CV deleted')
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete CV')
+    }
+  }
+
+  const handleExtractPdfWithAI = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('PDF must be under 10MB')
+      e.target.value = ''
+      return
+    }
+    setExtractingPdf(true)
+    try {
+      // If no master CV record exists yet, upload the file first
+      if (!masterCV) {
+        const data = await api.uploadMasterCV(file)
+        setMasterCV(data)
+      }
+
+      // Extract text using AI
+      const extractedText = await api.extractCVText(file)
+      setCvText(extractedText)
+
+      // Save the extracted text to the master CV record
+      const cvId = masterCV?.id
+      if (cvId) {
+        await api.updateMasterCVText(cvId, extractedText)
+        setMasterCV((prev: any) => ({ ...prev, extracted_text: extractedText }))
+      }
+
+      setShowCvTextInput(true)
+      toast.success('PDF text extracted successfully! Review and save below.')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to extract PDF text')
+    } finally {
+      setExtractingPdf(false)
+      e.target.value = ''
     }
   }
 
@@ -313,9 +351,30 @@ export default function SettingsPage() {
 
               {showCvTextInput && (
                 <div className="space-y-2">
-                  <label className="text-xs font-medium block">CV Text Content</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium block">CV Text Content</label>
+                    <div className="relative inline-block">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleExtractPdfWithAI}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                        disabled={extractingPdf || !apiKeyStatus.configured}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        disabled={extractingPdf || !apiKeyStatus.configured}
+                        title={!apiKeyStatus.configured ? 'Set your Anthropic API key above to enable PDF extraction' : 'Extract text from a PDF using AI'}
+                      >
+                        {extractingPdf ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                        Extract from PDF with AI
+                      </Button>
+                    </div>
+                  </div>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                    Paste your CV content as plain text. This text is used by AI for compatibility analysis and cover letter generation.
+                    Paste your CV content as plain text, or use the button above to extract text from a PDF. This text is used by AI for compatibility analysis and cover letter generation.
                   </p>
                   <textarea
                     className="w-full min-h-[200px] p-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--background))] text-sm font-mono resize-y"
@@ -336,24 +395,74 @@ export default function SettingsPage() {
                 <UploadCloud className="h-8 w-8 mx-auto text-[hsl(var(--muted-foreground))] mb-2" />
                 <p className="text-sm font-medium mb-1">Upload your Master CV</p>
                 <p className="text-xs text-[hsl(var(--muted-foreground))] mb-3">
-                  PDF or DOCX recommended. After uploading, paste the text content for AI analysis.
+                  Upload a file and then extract or paste the text content.
                 </p>
-                <div className="relative inline-block">
-                  <input
-                    type="file"
-                    accept=".pdf,.docx,.doc,.txt"
-                    onChange={handleUploadCV}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    disabled={cvLoading}
-                  />
-                  <Button size="sm" disabled={cvLoading}>
-                    {cvLoading ? <span className="animate-spin mr-2">⟳</span> : <UploadCloud className="h-4 w-4 mr-1" />}
-                    Choose File
-                  </Button>
+                <div className="flex items-center justify-center gap-2">
+                  <div className="relative inline-block">
+                    <input
+                      type="file"
+                      accept=".pdf,.docx,.doc,.txt"
+                      onChange={handleUploadCV}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      disabled={cvLoading || extractingPdf}
+                    />
+                    <Button size="sm" disabled={cvLoading || extractingPdf}>
+                      {cvLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <UploadCloud className="h-4 w-4 mr-1" />}
+                      Upload File
+                    </Button>
+                  </div>
+                  <span className="text-xs text-[hsl(var(--muted-foreground))]">or</span>
+                  <div className="relative inline-block">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        if (file.size > 10 * 1024 * 1024) {
+                          toast.error('PDF must be under 10MB')
+                          e.target.value = ''
+                          return
+                        }
+                        setCvLoading(true)
+                        setExtractingPdf(true)
+                        try {
+                          // Upload the file first
+                          const data = await api.uploadMasterCV(file)
+                          setMasterCV(data)
+                          // Then extract text
+                          const extractedText = await api.extractCVText(file)
+                          setCvText(extractedText)
+                          await api.updateMasterCVText(data.id, extractedText)
+                          setMasterCV((prev: any) => ({ ...prev, extracted_text: extractedText }))
+                          setShowCvTextInput(true)
+                          toast.success('PDF uploaded and text extracted! Review below.')
+                        } catch (err: any) {
+                          toast.error(err.message || 'Failed to extract PDF')
+                        } finally {
+                          setCvLoading(false)
+                          setExtractingPdf(false)
+                          e.target.value = ''
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                      disabled={cvLoading || extractingPdf || !apiKeyStatus.configured}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={cvLoading || extractingPdf || !apiKeyStatus.configured}
+                      title={!apiKeyStatus.configured ? 'Set your Anthropic API key above to enable PDF extraction' : 'Upload PDF and extract text with AI'}
+                    >
+                      {extractingPdf ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
+                      Upload PDF + Extract with AI
+                    </Button>
+                  </div>
                 </div>
               </div>
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
                 Your CV enables: auto match score calculation, personalized cover letters, and compatibility analysis.
+                {!apiKeyStatus.configured && ' Set your Anthropic API key above to enable PDF text extraction.'}
               </p>
             </div>
           )}

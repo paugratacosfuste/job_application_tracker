@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { Application, Tag, Resume, CoverLetter } from '@/types'
+import { parseJob, analyzeMatch as aiAnalyzeMatch, generateCoverLetter as aiGenerateCoverLetter, extractCVText } from './ai'
 
 async function getCurrentUserId(): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -259,21 +260,11 @@ export const api = {
   // ========== Parsing ==========
 
   parseUrl: async (url: string, cvText?: string) => {
-    const { data, error } = await supabase.functions.invoke('parse-job', {
-      body: { type: 'url', content: url, cv_text: cvText || undefined },
-    })
-    if (error) throw new Error(error.message || 'Failed to parse URL')
-    if (data?.error) throw new Error(data.error)
-    return data
+    return parseJob('url', url, cvText)
   },
 
   parseText: async (text: string, cvText?: string) => {
-    const { data, error } = await supabase.functions.invoke('parse-job', {
-      body: { type: 'text', content: text, cv_text: cvText || undefined },
-    })
-    if (error) throw new Error(error.message || 'Failed to parse text')
-    if (data?.error) throw new Error(data.error)
-    return data
+    return parseJob('text', text, cvText)
   },
 
   // ========== Tags ==========
@@ -784,21 +775,15 @@ export const api = {
   // ========== AI Functions ==========
 
   analyzeMatch: async (applicationId: string) => {
-    const { data, error } = await supabase.functions.invoke('analyze-match', {
-      body: { application_id: applicationId },
-    })
-    if (error) throw new Error(error.message || 'Failed to analyze match')
-    if (data?.error) throw new Error(data.error)
-    return data
+    return aiAnalyzeMatch(applicationId)
   },
 
   generateCoverLetter: async (applicationId: string, instructions?: string) => {
-    const { data, error } = await supabase.functions.invoke('generate-cover', {
-      body: { application_id: applicationId, instructions },
-    })
-    if (error) throw new Error(error.message || 'Failed to generate cover letter')
-    if (data?.error) throw new Error(data.error)
-    return data
+    return aiGenerateCoverLetter(applicationId, instructions)
+  },
+
+  extractCVText: async (file: File) => {
+    return extractCVText(file)
   },
 
   clearData: async () => {

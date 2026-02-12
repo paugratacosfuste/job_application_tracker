@@ -614,7 +614,7 @@ export default function ApplicationDetail({ onRefresh }: Props) {
                     <div key={cl.id} className="border border-[hsl(var(--border))] rounded-lg p-3 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                          v{cl.version} · {new Date(cl.created_at).toLocaleDateString()}
+                          {cl.label || 'Cover Letter'} · {new Date(cl.created_at).toLocaleDateString()}
                           {cl.instructions && ` · "${cl.instructions}"`}
                         </span>
                         <div className="flex gap-1">

@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
         application_id,
         generated_text: result.cover_letter,
         instructions: instructions || null,
-        version: 1,
+        label: `AI Generated - ${new Date().toLocaleDateString()}`,
       })
       .select()
       .single()
