@@ -56,7 +56,7 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
     }
   }
 
-  const handleStatusChange = async (id: number, newStatus: string) => {
+  const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       await api.updateStatus(id, newStatus)
       setApplications(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a))
@@ -66,7 +66,7 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Delete this application?')) return
     try {
       await api.deleteApplication(id)
@@ -78,7 +78,7 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
   }
 
   const handleBulkDelete = async () => {
-    const selectedIds = Object.keys(rowSelection).map(idx => filteredData[parseInt(idx)]?.id).filter(Boolean) as number[]
+    const selectedIds = Object.keys(rowSelection).map(idx => filteredData[parseInt(idx)]?.id).filter(Boolean) as string[]
     if (selectedIds.length === 0) return
     if (!confirm(`Delete ${selectedIds.length} applications?`)) return
     try {
@@ -92,7 +92,7 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
   }
 
   const handleBulkStatus = async (status: string) => {
-    const selectedIds = Object.keys(rowSelection).map(idx => filteredData[parseInt(idx)]?.id).filter(Boolean) as number[]
+    const selectedIds = Object.keys(rowSelection).map(idx => filteredData[parseInt(idx)]?.id).filter(Boolean) as string[]
     if (selectedIds.length === 0) return
     try {
       await api.bulkStatus(selectedIds, status)

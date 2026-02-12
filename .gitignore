@@ -96,3 +96,4 @@ coverage/
 .temp/
 .tmp/
 uploads/
+.env.local

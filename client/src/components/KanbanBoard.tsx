@@ -215,7 +215,7 @@ export default function KanbanBoard({ searchQuery, refreshKey, onRefresh }: Prop
   // Status transition dialog state
   const [transitionDialog, setTransitionDialog] = useState<{
     open: boolean
-    appId: number
+    appId: string
     appName: string
     fromStatus: string
     targetStatus: string

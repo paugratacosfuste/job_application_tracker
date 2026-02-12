@@ -19,7 +19,7 @@ interface CalendarEvent {
   company: string
   type: 'interview' | 'follow_up' | 'applied' | 'deadline'
   status?: string
-  applicationId: number
+  applicationId: string
 }
 
 function buildGoogleCalendarUrl(event: CalendarEvent): string {

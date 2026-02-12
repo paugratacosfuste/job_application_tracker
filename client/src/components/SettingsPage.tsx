@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [apiKeyStatus, setApiKeyStatus] = useState<{ configured: boolean; masked: string | null }>({ configured: false, masked: null })
   const [tags, setTags] = useState<TagType[]>([])
-  const [editingTag, setEditingTag] = useState<number | null>(null)
+  const [editingTag, setEditingTag] = useState<string | null>(null)
   const [editTagName, setEditTagName] = useState('')
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system')
   const [importLoading, setImportLoading] = useState(false)
@@ -110,7 +110,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleDeleteTag = async (id: number) => {
+  const handleDeleteTag = async (id: string) => {
     try {
       await api.deleteTag(id)
       setTags(prev => prev.filter(t => t.id !== id))
@@ -120,7 +120,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleUpdateTag = async (id: number) => {
+  const handleUpdateTag = async (id: string) => {
     const trimmed = editTagName.trim()
     if (!trimmed) return
     // Check for duplicate
@@ -196,7 +196,7 @@ export default function SettingsPage() {
             <Button onClick={handleSaveApiKey} disabled={!apiKey.trim()}>Save</Button>
           </div>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            Your API key is stored locally in the server .env file. It is never sent to the frontend or any third party.
+            Your API key is stored securely in your user settings. It is used only for AI-powered job parsing.
           </p>
         </CardContent>
       </Card>

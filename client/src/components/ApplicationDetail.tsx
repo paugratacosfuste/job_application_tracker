@@ -40,7 +40,7 @@ export default function ApplicationDetail({ onRefresh }: Props) {
 
   const loadApplication = async () => {
     try {
-      const data = await api.getApplication(parseInt(id!))
+      const data = await api.getApplication(id!)
       setApp(data)
       setForm(data)
     } catch (err) {
@@ -56,7 +56,7 @@ export default function ApplicationDetail({ onRefresh }: Props) {
     try {
       const tags = form.tags?.map((t: any) => t.name) || []
       const { status_history, ...data } = form
-      await api.updateApplication(parseInt(id!), { ...data, tags })
+      await api.updateApplication(id!, { ...data, tags })
       toast.success('Application updated')
       setEditing(false)
       loadApplication()
@@ -94,7 +94,7 @@ export default function ApplicationDetail({ onRefresh }: Props) {
 
   const executeStatusChange = async (newStatus: string, notes?: string) => {
     try {
-      await api.updateStatus(parseInt(id!), newStatus, notes)
+      await api.updateStatus(id!, newStatus, notes)
       toast.success(`Status updated to ${STATUS_LABELS[newStatus as keyof typeof STATUS_LABELS]}`)
       loadApplication()
       onRefresh()
@@ -116,7 +116,7 @@ export default function ApplicationDetail({ onRefresh }: Props) {
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this application?')) return
     try {
-      await api.deleteApplication(parseInt(id!))
+      await api.deleteApplication(id!)
       toast.success('Application deleted')
       onRefresh()
       navigate('/')

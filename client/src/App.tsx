@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon } from 'lucide-react'
+import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import KanbanBoard from '@/components/KanbanBoard'
@@ -10,6 +10,10 @@ import CalendarView from '@/components/CalendarView'
 import SettingsPage from '@/components/SettingsPage'
 import ApplicationDetail from '@/components/ApplicationDetail'
 import AddApplicationModal from '@/components/AddApplicationModal'
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import LoginPage from '@/components/auth/LoginPage'
+import SignUpPage from '@/components/auth/SignUpPage'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
@@ -20,7 +24,7 @@ const NAV_ITEMS = [
   { path: '/settings', icon: Settings, label: 'Settings', shortcut: 'S' },
 ]
 
-function App() {
+function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
@@ -33,6 +37,7 @@ function App() {
   const [refreshKey, setRefreshKey] = useState(0)
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, signOut } = useAuth()
 
   const triggerRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
@@ -95,6 +100,30 @@ function App() {
             </button>
           ))}
         </nav>
+        {/* User info + Sign Out */}
+        <div className="p-3 border-t border-[hsl(var(--border))]">
+          {sidebarOpen ? (
+            <div className="space-y-2">
+              <p className="text-xs text-[hsl(var(--muted-foreground))] truncate" title={user?.email || ''}>
+                {user?.email}
+              </p>
+              <button
+                onClick={signOut}
+                className="w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] transition-colors"
+              >
+                <LogOut className="h-3.5 w-3.5" /> Sign Out
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={signOut}
+              className="w-full flex items-center justify-center p-2 rounded-md text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </aside>
 
       {/* Mobile sidebar */}
@@ -125,6 +154,12 @@ function App() {
                 </button>
               ))}
             </nav>
+            <div className="mt-4 pt-4 border-t border-[hsl(var(--border))]">
+              <p className="text-xs text-[hsl(var(--muted-foreground))] truncate mb-2">{user?.email}</p>
+              <button onClick={signOut} className="flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
+                <LogOut className="h-3.5 w-3.5" /> Sign Out
+              </button>
+            </div>
           </aside>
         </div>
       )}
@@ -172,6 +207,20 @@ function App() {
 
       <AddApplicationModal open={addModalOpen} onClose={() => setAddModalOpen(false)} onCreated={triggerRefresh} />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignUpPage />} />
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <AppLayout />
+        </ProtectedRoute>
+      } />
+    </Routes>
   )
 }
 
