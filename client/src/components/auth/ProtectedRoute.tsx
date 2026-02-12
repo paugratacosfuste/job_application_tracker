@@ -14,7 +14,7 @@ export default function ProtectedRoute({ children }: { children?: React.ReactNod
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/welcome" replace />
   }
 
   return children ? <>{children}</> : <Outlet />

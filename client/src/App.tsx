@@ -1,21 +1,35 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, LogOut, FileText } from 'lucide-react'
+import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, LogOut, FileText, FileEdit, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import KanbanBoard from '@/components/KanbanBoard'
-import TableView from '@/components/TableView'
-import Dashboard from '@/components/Dashboard'
-import CalendarView from '@/components/CalendarView'
-import SettingsPage from '@/components/SettingsPage'
-import ApplicationDetail from '@/components/ApplicationDetail'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import AddApplicationModal from '@/components/AddApplicationModal'
-import ResumeManager from '@/components/ResumeManager'
+import WelcomeModal from '@/components/WelcomeModal'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
-import LoginPage from '@/components/auth/LoginPage'
-import SignUpPage from '@/components/auth/SignUpPage'
 import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
+
+// Lazy-loaded route components
+const TableView = lazy(() => import('@/components/TableView'))
+const Dashboard = lazy(() => import('@/components/Dashboard'))
+const CalendarView = lazy(() => import('@/components/CalendarView'))
+const SettingsPage = lazy(() => import('@/components/SettingsPage'))
+const ApplicationDetail = lazy(() => import('@/components/ApplicationDetail'))
+const ResumeManager = lazy(() => import('@/components/ResumeManager'))
+const CoverLettersPage = lazy(() => import('@/components/CoverLettersPage'))
+const LandingPage = lazy(() => import('@/components/LandingPage'))
+const LoginPage = lazy(() => import('@/components/auth/LoginPage'))
+const SignUpPage = lazy(() => import('@/components/auth/SignUpPage'))
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="h-6 w-6 animate-spin text-[#489FB5]" />
+    </div>
+  )
+}
 
 const NAV_ITEMS = [
   { path: '/', icon: Kanban, label: 'Kanban', shortcut: 'K' },
@@ -23,6 +37,7 @@ const NAV_ITEMS = [
   { path: '/dashboard', icon: BarChart3, label: 'Dashboard', shortcut: 'D' },
   { path: '/calendar', icon: Calendar, label: 'Calendar', shortcut: 'C' },
   { path: '/resumes', icon: FileText, label: 'Resumes', shortcut: 'R' },
+  { path: '/cover-letters', icon: FileEdit, label: 'Cover Letters', shortcut: 'L' },
   { path: '/settings', icon: Settings, label: 'Settings', shortcut: 'S' },
 ]
 
@@ -60,6 +75,7 @@ function AppLayout() {
         case 'd': e.preventDefault(); navigate('/dashboard'); break
         case 'c': e.preventDefault(); navigate('/calendar'); break
         case 'r': e.preventDefault(); navigate('/resumes'); break
+        case 'l': e.preventDefault(); navigate('/cover-letters'); break
         case 's': e.preventDefault(); navigate('/settings'); break
         case '/': e.preventDefault(); document.getElementById('global-search')?.focus(); break
       }
@@ -197,34 +213,45 @@ function AppLayout() {
         </header>
 
         <main className="flex-1 overflow-auto">
-          <Routes>
-            <Route path="/" element={<KanbanBoard searchQuery={searchQuery} refreshKey={refreshKey} onRefresh={triggerRefresh} />} />
-            <Route path="/table" element={<TableView searchQuery={searchQuery} refreshKey={refreshKey} onRefresh={triggerRefresh} />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/calendar" element={<CalendarView />} />
-            <Route path="/resumes" element={<ResumeManager />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/application/:id" element={<ApplicationDetail onRefresh={triggerRefresh} />} />
-          </Routes>
+          <ErrorBoundary>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<KanbanBoard searchQuery={searchQuery} refreshKey={refreshKey} onRefresh={triggerRefresh} />} />
+                <Route path="/table" element={<TableView searchQuery={searchQuery} refreshKey={refreshKey} onRefresh={triggerRefresh} />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/calendar" element={<CalendarView />} />
+                <Route path="/resumes" element={<ResumeManager />} />
+                <Route path="/cover-letters" element={<CoverLettersPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/application/:id" element={<ApplicationDetail onRefresh={triggerRefresh} />} />
+              </Routes>
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
 
       <AddApplicationModal open={addModalOpen} onClose={() => setAddModalOpen(false)} onCreated={triggerRefresh} />
+      <WelcomeModal />
     </div>
   )
 }
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
-      <Route path="/*" element={
-        <ProtectedRoute>
-          <AppLayout />
-        </ProtectedRoute>
-      } />
-    </Routes>
+    <ErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/welcome" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/*" element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 
