@@ -138,9 +138,18 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
         </button>
       ),
     }),
-    columnHelper.accessor(row => row.salary_min || row.salary_max ? `${row.salary_min?.toLocaleString() || '?'}-${row.salary_max?.toLocaleString() || '?'} ${row.salary_currency}` : '-', {
+    columnHelper.accessor(row => {
+      if (row.salary_not_specified) return 'Not specified'
+      if (row.salary_min || row.salary_max) return `${row.salary_min?.toLocaleString() || '?'}-${row.salary_max?.toLocaleString() || '?'} ${row.salary_currency}`
+      return '-'
+    }, {
       id: 'salary',
       header: 'Salary',
+      cell: info => {
+        const val = info.getValue()
+        if (val === 'Not specified') return <span className="text-[hsl(var(--muted-foreground))] italic text-xs">Not specified</span>
+        return val
+      },
     }),
     columnHelper.accessor(row => [row.location_city, row.location_country].filter(Boolean).join(', ') || '-', {
       id: 'location',
@@ -153,8 +162,8 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
     columnHelper.accessor('status', {
       header: 'Status',
       cell: info => (
-        <Select value={info.getValue()} onChange={e => handleStatusChange(info.row.original.id, e.target.value)}
-          className={cn('text-xs h-7 w-36', STATUS_COLORS[info.getValue() as keyof typeof STATUS_COLORS])}>
+        <Select value={info.getValue() || 'saved'} onChange={e => handleStatusChange(info.row.original.id, e.target.value)}
+          className={cn('text-xs h-7 w-36', STATUS_COLORS[(info.getValue() || 'saved') as keyof typeof STATUS_COLORS])}>
           {STATUSES.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
         </Select>
       ),
@@ -163,7 +172,7 @@ export default function TableView({ searchQuery, refreshKey, onRefresh }: Props)
       header: 'Priority',
       cell: info => {
         const colors: Record<string, string> = { high: 'text-red-600', medium: 'text-yellow-600', low: 'text-green-600' }
-        return <span className={cn('text-xs font-medium capitalize', colors[info.getValue()])}>{info.getValue()}</span>
+        return <span className={cn('text-xs font-medium capitalize', colors[info.getValue() || 'medium'])}>{info.getValue()}</span>
       },
     }),
     columnHelper.accessor('date_applied', {

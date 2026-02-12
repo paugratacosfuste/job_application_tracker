@@ -7,6 +7,12 @@ export type ApplicationUpdate = Database['public']['Tables']['applications']['Up
 export type StatusHistoryRow = Database['public']['Tables']['status_history']['Row']
 export type TagRow = Database['public']['Tables']['tags']['Row']
 export type UserSettings = Database['public']['Tables']['user_settings']['Row']
+export type ResumeRow = Database['public']['Tables']['resumes']['Row']
+export type ResumeInsert = Database['public']['Tables']['resumes']['Insert']
+export type ResumeUpdate = Database['public']['Tables']['resumes']['Update']
+export type CoverLetterRow = Database['public']['Tables']['cover_letters']['Row']
+export type CoverLetterInsert = Database['public']['Tables']['cover_letters']['Insert']
+export type CoverLetterUpdate = Database['public']['Tables']['cover_letters']['Update']
 
 // Extended types used by components (backward-compatible names)
 export type Application = ApplicationRow & {
@@ -22,6 +28,9 @@ export type Tag = TagRow & {
 }
 
 export type StatusHistoryEntry = StatusHistoryRow
+
+export type Resume = ResumeRow
+export type CoverLetter = CoverLetterRow
 
 export interface ParseResult {
   parsed: {

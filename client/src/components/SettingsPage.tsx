@@ -370,6 +370,7 @@ export default function SettingsPage() {
               ['T', 'Table view'],
               ['D', 'Dashboard'],
               ['C', 'Calendar view'],
+              ['R', 'Resumes'],
               ['S', 'Settings'],
               ['/', 'Focus search'],
             ].map(([key, desc]) => (

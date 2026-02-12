@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, LogOut } from 'lucide-react'
+import { Kanban, Table, BarChart3, Calendar, Settings, Plus, Search, Menu, X, Sun, Moon, LogOut, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import KanbanBoard from '@/components/KanbanBoard'
@@ -10,6 +10,7 @@ import CalendarView from '@/components/CalendarView'
 import SettingsPage from '@/components/SettingsPage'
 import ApplicationDetail from '@/components/ApplicationDetail'
 import AddApplicationModal from '@/components/AddApplicationModal'
+import ResumeManager from '@/components/ResumeManager'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import LoginPage from '@/components/auth/LoginPage'
 import SignUpPage from '@/components/auth/SignUpPage'
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { path: '/table', icon: Table, label: 'Table', shortcut: 'T' },
   { path: '/dashboard', icon: BarChart3, label: 'Dashboard', shortcut: 'D' },
   { path: '/calendar', icon: Calendar, label: 'Calendar', shortcut: 'C' },
+  { path: '/resumes', icon: FileText, label: 'Resumes', shortcut: 'R' },
   { path: '/settings', icon: Settings, label: 'Settings', shortcut: 'S' },
 ]
 
@@ -57,6 +59,7 @@ function AppLayout() {
         case 't': e.preventDefault(); navigate('/table'); break
         case 'd': e.preventDefault(); navigate('/dashboard'); break
         case 'c': e.preventDefault(); navigate('/calendar'); break
+        case 'r': e.preventDefault(); navigate('/resumes'); break
         case 's': e.preventDefault(); navigate('/settings'); break
         case '/': e.preventDefault(); document.getElementById('global-search')?.focus(); break
       }
@@ -199,6 +202,7 @@ function AppLayout() {
             <Route path="/table" element={<TableView searchQuery={searchQuery} refreshKey={refreshKey} onRefresh={triggerRefresh} />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/resumes" element={<ResumeManager />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/application/:id" element={<ApplicationDetail onRefresh={triggerRefresh} />} />
           </Routes>

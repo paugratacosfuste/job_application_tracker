@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api } from '@/lib/api'
 import { STATUSES, STATUS_LABELS, STATUS_COLORS, WORK_MODES, COMPANY_SIZES, COMPENSATION_TYPES, SOURCES, PRIORITIES, STATUS_NEEDS_DATE, STATUS_NO_PROMPT } from '@/lib/constants'
-import type { Application } from '@/types'
+import type { Application, Resume } from '@/types'
+import ResumePicker from '@/components/ResumePicker'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -287,6 +288,22 @@ export default function ApplicationDetail({ onRefresh }: Props) {
                     <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Match Score</label>
                     <Input type="number" min="1" max="5" value={form.match_score || ''} onChange={e => updateForm('match_score', e.target.value ? parseInt(e.target.value) : null)} />
                   </div>
+                  <div>
+                    <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Resume</label>
+                    <ResumePicker value={form.resume_id} onChange={val => updateForm('resume_id', val)} />
+                  </div>
+                  <div className="col-span-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="detail_salary_not_specified"
+                      checked={form.salary_not_specified === true}
+                      onChange={e => updateForm('salary_not_specified', e.target.checked)}
+                      className="rounded border-[hsl(var(--border))]"
+                    />
+                    <label htmlFor="detail_salary_not_specified" className="text-xs text-[hsl(var(--muted-foreground))]">
+                      Salary not specified in job posting
+                    </label>
+                  </div>
                   <div className="col-span-2">
                     <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Notes</label>
                     <Textarea rows={4} value={form.notes || ''} onChange={e => updateForm('notes', e.target.value)} />
@@ -306,13 +323,19 @@ export default function ApplicationDetail({ onRefresh }: Props) {
                     <Briefcase className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
                     <span>{app.work_mode || 'Not specified'}</span>
                   </div>
-                  {(app.salary_min || app.salary_max) && (
-                    <div className="col-span-2">
-                      <span className="text-[hsl(var(--muted-foreground))]">Salary:</span>{' '}
-                      {app.salary_min?.toLocaleString() || '?'} - {app.salary_max?.toLocaleString() || '?'} {app.salary_currency}
-                      {app.compensation_type && ` (${app.compensation_type})`}
-                    </div>
-                  )}
+                  <div className="col-span-2">
+                    <span className="text-[hsl(var(--muted-foreground))]">Salary:</span>{' '}
+                    {app.salary_not_specified ? (
+                      <span className="text-[hsl(var(--muted-foreground))] italic">Not specified</span>
+                    ) : (app.salary_min || app.salary_max) ? (
+                      <>
+                        {app.salary_min?.toLocaleString() || '?'} - {app.salary_max?.toLocaleString() || '?'} {app.salary_currency}
+                        {app.compensation_type && ` (${app.compensation_type})`}
+                      </>
+                    ) : (
+                      <span className="text-[hsl(var(--muted-foreground))]">—</span>
+                    )}
+                  </div>
                   {app.source && <div><span className="text-[hsl(var(--muted-foreground))]">Source:</span> {app.source}</div>}
                   {app.company_size && <div><span className="text-[hsl(var(--muted-foreground))]">Company Size:</span> {app.company_size}</div>}
                   {app.match_score && <div><span className="text-[hsl(var(--muted-foreground))]">Match Score:</span> {'⭐'.repeat(app.match_score)}</div>}

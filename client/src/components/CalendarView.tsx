@@ -79,7 +79,7 @@ export default function CalendarView() {
           title: `Applied: ${app.job_title}`,
           company: app.company_name,
           type: 'applied',
-          status: app.status,
+          status: app.status || undefined,
           applicationId: app.id,
         })
       }
@@ -90,7 +90,7 @@ export default function CalendarView() {
           title: `Follow-up: ${app.job_title}`,
           company: app.company_name,
           type: 'follow_up',
-          status: app.status,
+          status: app.status || undefined,
           applicationId: app.id,
         })
       }
@@ -121,18 +121,18 @@ export default function CalendarView() {
       }
 
       // Infer interview dates from current status (fallback for apps without status history dates)
-      if (['phone_screen', 'technical_interview', 'final_round'].includes(app.status)) {
+      if (app.status && ['phone_screen', 'technical_interview', 'final_round'].includes(app.status)) {
         const hasHistoryDate = app.status_history?.some(h =>
           h.to_status === app.status && h.notes?.match(/:\s*\d{4}-\d{2}-\d{2}/)
         )
-        if (!hasHistoryDate) {
+        if (!hasHistoryDate && app.date_added) {
           evts.push({
             id: evts.length,
             date: new Date(app.date_added),
             title: `${STATUS_LABELS[app.status as keyof typeof STATUS_LABELS]}: ${app.job_title}`,
             company: app.company_name,
             type: 'interview',
-            status: app.status,
+            status: app.status || undefined,
             applicationId: app.id,
           })
         }

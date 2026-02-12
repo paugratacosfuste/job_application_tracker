@@ -35,9 +35,11 @@ function KanbanCard({ app, overlay }: { app: Application; overlay?: boolean }) {
   }
 
   const tags = app.tag_names ? app.tag_names.split(',') : []
-  const salaryRange = app.salary_min || app.salary_max
-    ? `${app.salary_min ? app.salary_min.toLocaleString() : '?'} - ${app.salary_max ? app.salary_max.toLocaleString() : '?'} ${app.salary_currency || 'EUR'}`
-    : null
+  const salaryRange = app.salary_not_specified
+    ? 'Not specified'
+    : (app.salary_min || app.salary_max)
+      ? `${app.salary_min ? app.salary_min.toLocaleString() : '?'} - ${app.salary_max ? app.salary_max.toLocaleString() : '?'} ${app.salary_currency || 'EUR'}`
+      : null
 
   return (
     <div
@@ -45,7 +47,7 @@ function KanbanCard({ app, overlay }: { app: Application; overlay?: boolean }) {
       style={overlay ? undefined : style}
       className={cn(
         "bg-[hsl(var(--card))] rounded-lg border border-[hsl(var(--border))] p-3 cursor-grab active:cursor-grabbing shadow-sm hover:shadow-md transition-shadow border-l-4",
-        PRIORITY_COLORS[app.priority] || 'border-l-yellow-500'
+        PRIORITY_COLORS[app.priority || 'medium'] || 'border-l-yellow-500'
       )}
       {...(overlay ? {} : { ...attributes, ...listeners })}
     >
@@ -289,7 +291,7 @@ export default function KanbanBoard({ searchQuery, refreshKey, onRefresh }: Prop
         open: true,
         appId: draggedApp.id,
         appName: `${draggedApp.job_title} at ${draggedApp.company_name}`,
-        fromStatus: draggedApp.status,
+        fromStatus: draggedApp.status || 'saved',
         targetStatus,
       })
     } else {

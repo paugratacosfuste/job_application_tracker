@@ -172,7 +172,138 @@ export type Database = {
           user_id?: string
           work_mode?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "applications_cover_letter_id_fkey"
+            columns: ["cover_letter_id"]
+            isOneToOne: false
+            referencedRelation: "cover_letters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cover_letters: {
+        Row: {
+          application_id: string | null
+          content: string | null
+          created_at: string | null
+          file_name: string | null
+          id: string
+          label: string
+          resume_id: string | null
+          storage_path: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          application_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          label: string
+          resume_id?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          application_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          id?: string
+          label?: string
+          resume_id?: string | null
+          storage_path?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cover_letters_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cover_letters_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resumes: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_size: number | null
+          id: string
+          is_default: boolean | null
+          label: string
+          mime_type: string | null
+          notes: string | null
+          parent_id: string | null
+          storage_path: string
+          tags: string[] | null
+          times_used: number | null
+          updated_at: string | null
+          user_id: string
+          version: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_size?: number | null
+          id?: string
+          is_default?: boolean | null
+          label: string
+          mime_type?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          storage_path: string
+          tags?: string[] | null
+          times_used?: number | null
+          updated_at?: string | null
+          user_id: string
+          version?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_size?: number | null
+          id?: string
+          is_default?: boolean | null
+          label?: string
+          mime_type?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          storage_path?: string
+          tags?: string[] | null
+          times_used?: number | null
+          updated_at?: string | null
+          user_id?: string
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resumes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       status_history: {
         Row: {
@@ -268,7 +399,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      record_resume_usage: { Args: { p_resume_id: string }; Returns: undefined }
+      set_default_resume: { Args: { p_resume_id: string }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

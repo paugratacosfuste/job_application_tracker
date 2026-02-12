@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Application, Tag } from '@/types'
+import type { Application, Tag, Resume, CoverLetter } from '@/types'
 
 async function getCurrentUserId(): Promise<string> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -368,7 +368,7 @@ export const api = {
   exportCsv: async () => {
     const { data, error } = await supabase
       .from('applications')
-      .select('*, application_tags(tag_id, tags(id, name, user_id))')
+      .select('*, application_tags(tag_id, tags(id, name, user_id)), resumes(label)')
       .order('date_added', { ascending: false })
     if (error) throw new Error(error.message)
 
@@ -377,19 +377,21 @@ export const api = {
 
     const headers = [
       'company_name', 'company_website', 'company_size', 'job_title', 'job_url',
-      'job_description_raw', 'salary_min', 'salary_max', 'salary_currency',
+      'job_description_raw', 'salary_min', 'salary_max', 'salary_currency', 'salary_not_specified',
       'compensation_type', 'location_city', 'location_country', 'work_mode',
       'status', 'date_applied', 'date_added', 'match_score', 'source',
       'contact_name', 'contact_email', 'contact_role', 'notes', 'priority',
-      'follow_up_date', 'resume_version', 'cover_letter_notes', 'tags'
+      'follow_up_date', 'resume_version', 'resume_label', 'cover_letter_notes', 'tags'
     ]
 
     const csvRows = [headers.join(',')]
     for (const app of apps) {
       const values = headers.map(h => {
         if (h === 'tags') return (app.tag_names || '').replace(/"/g, '""')
+        if (h === 'resume_label') return (app as any).resumes?.label || ''
         const val = (app as any)[h]
         if (val === null || val === undefined) return ''
+        if (typeof val === 'boolean') return val ? 'true' : 'false'
         const str = String(val).replace(/"/g, '""')
         return str.includes(',') || str.includes('"') || str.includes('\n') ? `"${str}"` : str
       })
@@ -421,7 +423,7 @@ export const api = {
     const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''))
     const allowedFields = [
       'company_name', 'company_website', 'company_size', 'job_title', 'job_url',
-      'job_description_raw', 'salary_min', 'salary_max', 'salary_currency',
+      'job_description_raw', 'salary_min', 'salary_max', 'salary_currency', 'salary_not_specified',
       'compensation_type', 'location_city', 'location_country', 'work_mode',
       'status', 'date_applied', 'match_score', 'source', 'contact_name',
       'contact_email', 'contact_role', 'notes', 'priority', 'follow_up_date',
@@ -457,6 +459,7 @@ export const api = {
       if (row.salary_min) row.salary_min = parseInt(row.salary_min)
       if (row.salary_max) row.salary_max = parseInt(row.salary_max)
       if (row.match_score) row.match_score = parseInt(row.match_score)
+      if (row.salary_not_specified) row.salary_not_specified = row.salary_not_specified === 'true'
 
       const { data: newApp, error } = await supabase
         .from('applications')
@@ -496,6 +499,176 @@ export const api = {
     }
 
     return { success: true, imported }
+  },
+
+  // ========== Resumes ==========
+
+  getResumes: async (): Promise<Resume[]> => {
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw new Error(error.message)
+    return data || []
+  },
+
+  getResume: async (id: string): Promise<Resume> => {
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('*')
+      .eq('id', id)
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  uploadResume: async (file: File, label: string, parentId?: string, tags?: string[], notes?: string): Promise<Resume> => {
+    const userId = await getCurrentUserId()
+    const ext = file.name.split('.').pop() || 'pdf'
+    const storagePath = `${userId}/${Date.now()}_${file.name}`
+
+    // Upload to storage
+    const { error: uploadError } = await supabase.storage
+      .from('resumes')
+      .upload(storagePath, file, { contentType: file.type })
+    if (uploadError) throw new Error(uploadError.message)
+
+    // Determine version number
+    let version = 1
+    if (parentId) {
+      const { data: parent } = await supabase
+        .from('resumes')
+        .select('version')
+        .eq('id', parentId)
+        .single()
+      if (parent) version = (parent.version || 1) + 1
+    }
+
+    // Check if this is the first resume (auto-set as default)
+    const { count } = await supabase
+      .from('resumes')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    const isFirst = (count || 0) === 0
+
+    // Insert record
+    const { data, error } = await supabase
+      .from('resumes')
+      .insert({
+        user_id: userId,
+        label,
+        file_name: file.name,
+        storage_path: storagePath,
+        file_size: file.size,
+        mime_type: file.type || 'application/pdf',
+        version,
+        parent_id: parentId || null,
+        is_default: isFirst,
+        tags: tags || [],
+        notes: notes || null,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  updateResume: async (id: string, updates: { label?: string; tags?: string[]; notes?: string }): Promise<Resume> => {
+    const { data, error } = await supabase
+      .from('resumes')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  deleteResume: async (id: string) => {
+    // Get the storage path first
+    const { data: resume } = await supabase
+      .from('resumes')
+      .select('storage_path')
+      .eq('id', id)
+      .single()
+
+    // Delete from storage
+    if (resume?.storage_path) {
+      await supabase.storage.from('resumes').remove([resume.storage_path])
+    }
+
+    // Delete record
+    const { error } = await supabase.from('resumes').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    return { success: true }
+  },
+
+  setDefaultResume: async (id: string) => {
+    const { error } = await supabase.rpc('set_default_resume', { p_resume_id: id })
+    if (error) throw new Error(error.message)
+    return { success: true }
+  },
+
+  recordResumeUsage: async (id: string) => {
+    const { error } = await supabase.rpc('record_resume_usage', { p_resume_id: id })
+    if (error) throw new Error(error.message)
+    return { success: true }
+  },
+
+  getResumeSignedUrl: async (storagePath: string): Promise<string> => {
+    const { data, error } = await supabase.storage
+      .from('resumes')
+      .createSignedUrl(storagePath, 3600) // 1 hour
+    if (error) throw new Error(error.message)
+    return data.signedUrl
+  },
+
+  // ========== Cover Letters ==========
+
+  getCoverLetters: async (applicationId?: string): Promise<CoverLetter[]> => {
+    let query = supabase
+      .from('cover_letters')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (applicationId) {
+      query = query.eq('application_id', applicationId)
+    }
+    const { data, error } = await query
+    if (error) throw new Error(error.message)
+    return data || []
+  },
+
+  createCoverLetter: async (coverLetter: {
+    label: string
+    content?: string
+    application_id?: string
+    resume_id?: string
+  }): Promise<CoverLetter> => {
+    const userId = await getCurrentUserId()
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .insert({ ...coverLetter, user_id: userId })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  updateCoverLetter: async (id: string, updates: { label?: string; content?: string }): Promise<CoverLetter> => {
+    const { data, error } = await supabase
+      .from('cover_letters')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return data
+  },
+
+  deleteCoverLetter: async (id: string) => {
+    const { error } = await supabase.from('cover_letters').delete().eq('id', id)
+    if (error) throw new Error(error.message)
+    return { success: true }
   },
 
   // ========== Settings ==========

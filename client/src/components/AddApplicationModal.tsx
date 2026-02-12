@@ -12,6 +12,7 @@ import { COUNTRIES } from '@/lib/countries'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import type { Tag } from '@/types'
+import ResumePicker from '@/components/ResumePicker'
 
 interface Props {
   open: boolean
@@ -45,6 +46,7 @@ const EMPTY_FORM = {
   follow_up_date: '',
   resume_version: '',
   cover_letter_notes: '',
+  salary_not_specified: false,
   tags: '',
 }
 
@@ -63,6 +65,7 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [countrySearch, setCountrySearch] = useState('')
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
+  const [resumeId, setResumeId] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -83,6 +86,7 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
     setSelectedTags([])
     setTagInput('')
     setCountrySearch('')
+    setResumeId(null)
   }
 
   const loadTags = async () => {
@@ -187,7 +191,7 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
     setStep(2)
   }
 
-  const updateForm = (field: string, value: string) => {
+  const updateForm = (field: string, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
@@ -228,6 +232,7 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
       }
 
       data.tags = selectedTags.filter(Boolean)
+      if (resumeId) data.resume_id = resumeId
 
       await api.createApplication(data)
       toast.success('Application created successfully')
@@ -393,6 +398,18 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
           <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Salary Max</label>
           <Input className={fieldClass('salary_max')} type="number" value={form.salary_max} onChange={e => updateForm('salary_max', e.target.value)} placeholder="e.g. 80000" />
         </div>
+        <div className="sm:col-span-2 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="salary_not_specified"
+            checked={form.salary_not_specified === true}
+            onChange={e => updateForm('salary_not_specified', e.target.checked)}
+            className="rounded border-[hsl(var(--border))]"
+          />
+          <label htmlFor="salary_not_specified" className="text-xs text-[hsl(var(--muted-foreground))]">
+            Salary not specified in job posting
+          </label>
+        </div>
         <div>
           <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Currency</label>
           <Input className={fieldClass('salary_currency')} value={form.salary_currency} onChange={e => updateForm('salary_currency', e.target.value)} placeholder="EUR" />
@@ -487,8 +504,8 @@ export default function AddApplicationModal({ open, onClose, onCreated }: Props)
           <Input type="date" value={form.follow_up_date} onChange={e => updateForm('follow_up_date', e.target.value)} />
         </div>
         <div>
-          <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Resume Version</label>
-          <Input value={form.resume_version} onChange={e => updateForm('resume_version', e.target.value)} placeholder="e.g. v3-frontend" />
+          <label className="text-xs font-medium text-[hsl(var(--muted-foreground))] mb-1 block">Resume</label>
+          <ResumePicker value={resumeId} onChange={setResumeId} />
         </div>
 
         {/* Tags with autocomplete and quick-select chips */}
